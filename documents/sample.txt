@@ -1,0 +1,2 @@
+This is a sample document.
+It exists so the loader can be tested right away.
