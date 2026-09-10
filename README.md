@@ -1,8 +1,8 @@
 # python-document-search
 
 Small starter project that loads `.txt` files from `documents/`, splits them
-into chunks, and ranks those chunks against a question. It can rank by shared
-words or by meaning.
+into chunks, ranks those chunks against a question, and can have a language
+model write the answer from the chunks it found.
 
 ## Setup
 
@@ -10,7 +10,8 @@ words or by meaning.
 pip install -r requirements.txt
 ```
 
-Semantic search needs an OpenAI API key in the environment:
+Semantic search and generated answers need an OpenAI API key in the
+environment:
 
 ```bash
 export OPENAI_API_KEY=your-key-here
@@ -36,6 +37,13 @@ Semantic search, which ranks by meaning:
 python main.py --semantic what is a car
 ```
 
+A written answer instead of a list of chunks:
+
+```bash
+python main.py --answer how does chunking split a document
+python main.py --semantic --answer what is a car
+```
+
 ## How it works
 
 Each document is split into chunks of up to 200 words.
@@ -54,10 +62,16 @@ so unchanged documents are only ever paid for once. The cache records which
 model wrote it and is discarded if the model changes, because vectors from
 two different models cannot be compared.
 
+With `--answer`, the ranked chunks are numbered and handed to `gpt-4o-mini`,
+which is told to answer using only those chunks, to cite them in brackets
+like `[1]`, and to say plainly when the chunks do not contain the answer
+rather than guessing. The bracket numbers are positions in the result list,
+so the printed `Sources:` section maps each one back to its file.
+
 ## Tests
 
 ```bash
-python -m unittest tests.test_main tests.test_chunker tests.test_search tests.test_embeddings
+python -m unittest discover
 ```
 
 The tests never call the OpenAI API.

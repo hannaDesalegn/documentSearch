@@ -7,6 +7,10 @@ from search import search
 
 DOCUMENTS_DIR = Path(__file__).parent / "documents"
 
+# Command line switches, kept in one place so they can be stripped out of the
+# question no matter where they were typed.
+FLAGS = {"--semantic", "--answer"}
+
 
 def get_text_files(documents_dir: Path) -> list[Path]:
     return sorted(documents_dir.glob("*.txt"))
@@ -43,6 +47,26 @@ def print_documents(documents_dir: Path) -> None:
         print()
 
 
+def run_search(
+    question: str, chunk_texts: list[str], use_semantic: bool
+) -> list[tuple[float, int, str]]:
+    """Rank the chunks with whichever search the flags asked for."""
+    if use_semantic:
+        # Imported here, not at the top of the file, so that the keyword
+        # search still runs on a machine with no numpy, no openai package
+        # and no API key. Only the semantic path needs any of those.
+        from embeddings import semantic_search
+
+        return semantic_search(question, chunk_texts)
+
+    return search(question, chunk_texts)
+
+
+def format_score(score: float | int) -> str:
+    """Keyword scores are whole counts, similarity scores are fractions."""
+    return f"{score:.3f}" if isinstance(score, float) else str(score)
+
+
 def print_search_results(
     documents_dir: Path, question: str, use_semantic: bool = False
 ) -> None:
@@ -52,19 +76,10 @@ def print_search_results(
         print("No .txt files found in documents/")
         return
 
-    # search() only needs the text, so hand it the chunk text alone and keep
+    # The search only needs the text, so hand it the chunk text alone and keep
     # the index it returns to look the file name back up afterwards.
     chunk_texts = [chunk for _, chunk in chunks]
-
-    if use_semantic:
-        # Imported here, not at the top of the file, so that the keyword
-        # search still runs on a machine with no numpy, no openai package
-        # and no API key. Only the semantic path needs any of those.
-        from embeddings import semantic_search
-
-        results = semantic_search(question, chunk_texts)
-    else:
-        results = search(question, chunk_texts)
+    results = run_search(question, chunk_texts, use_semantic)
 
     if not results:
         print(f"No chunks matched: {question}")
@@ -75,25 +90,54 @@ def print_search_results(
 
     for score, index, chunk in results:
         source_name = chunks[index][0]
-        # Keyword scores are whole counts, similarity scores are fractions
-        # between -1 and 1, so they are printed to a readable number of
-        # decimal places instead of in full.
-        score_text = f"{score:.3f}" if isinstance(score, float) else str(score)
-        print(f"score {score_text} - {source_name}")
+        print(f"score {format_score(score)} - {source_name}")
         print(chunk)
         print()
+
+
+def print_answer(
+    documents_dir: Path, question: str, use_semantic: bool = False
+) -> None:
+    from answer import generate_answer
+
+    chunks = load_chunks(documents_dir)
+
+    if not chunks:
+        print("No .txt files found in documents/")
+        return
+
+    chunk_texts = [chunk for _, chunk in chunks]
+    results = run_search(question, chunk_texts, use_semantic)
+
+    print(generate_answer(question, results))
+
+    if not results:
+        return
+
+    # The model cites chunks by the number they were given in the prompt, and
+    # that number is just the position in the results list. Numbering the same
+    # way here is what turns a bracket in the answer back into a file name the
+    # reader can go and check.
+    print()
+    print("Sources:")
+    for number, (_, index, _) in enumerate(results, start=1):
+        source_name = chunks[index][0]
+        print(f"[{number}] {source_name}")
 
 
 if __name__ == "__main__":
     arguments = sys.argv[1:]
 
-    # Pull the flag out wherever it appears, so it can be written before or
-    # after the question. Everything left over is the question itself, which
-    # means a multi-word question works without quotes.
+    # Pull the flags out wherever they appear, so they can be written before
+    # or after the question. Everything left over is the question itself,
+    # which means a multi-word question works without quotes.
     use_semantic = "--semantic" in arguments
-    question = " ".join(word for word in arguments if word != "--semantic")
+    use_answer = "--answer" in arguments
+    question = " ".join(word for word in arguments if word not in FLAGS)
 
-    if question:
-        print_search_results(DOCUMENTS_DIR, question, use_semantic)
-    else:
+    if not question:
         print_documents(DOCUMENTS_DIR)
+    elif use_answer:
+        print_answer(DOCUMENTS_DIR, question, use_semantic)
+    else:
+        print_search_results(DOCUMENTS_DIR, question, use_semantic)

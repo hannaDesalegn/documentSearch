@@ -1,29 +1,15 @@
 import json
-import os
 from pathlib import Path
 
 import numpy as np
-from openai import OpenAI
+
+# Both this file and answer.py need a client built the same careful way, so
+# the setup lives in one place instead of being copied into each of them.
+from openai_client import get_client
 
 
 MODEL = "text-embedding-3-small"
 CACHE_PATH = Path(__file__).parent / "embeddings_cache.json"
-
-
-def get_client() -> OpenAI:
-    """Build an OpenAI client from the OPENAI_API_KEY environment variable."""
-    # The key is read here rather than when the module is imported. Building
-    # the client at import time would make this file impossible to import
-    # without a key, which would break the tests and the keyword search too.
-    api_key = os.environ.get("OPENAI_API_KEY")
-
-    if not api_key:
-        raise RuntimeError(
-            "OPENAI_API_KEY is not set. Export the key before running a "
-            "semantic search, and never write it into a source file."
-        )
-
-    return OpenAI(api_key=api_key)
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
