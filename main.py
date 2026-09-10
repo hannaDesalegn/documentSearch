@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from chunker import chunk_text
+
 
 DOCUMENTS_DIR = Path(__file__).parent / "documents"
 
@@ -17,8 +19,10 @@ def print_documents(documents_dir: Path) -> None:
 
     for file_path in text_files:
         content = file_path.read_text(encoding="utf-8")
+        chunks = chunk_text(content)
         print(f"{file_path.name}")
         print(content)
+        print(f"chunks: {len(chunks)}")
         print()
 
 
