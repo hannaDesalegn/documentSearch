@@ -10,11 +10,11 @@ model write the answer from the chunks it found.
 pip install -r requirements.txt
 ```
 
-Semantic search and generated answers need an OpenAI API key in the
+Semantic search and generated answers need a Gemini API key in the
 environment:
 
 ```bash
-export OPENAI_API_KEY=your-key-here
+export GEMINI_API_KEY=your-key-here
 ```
 
 ## Run
@@ -54,7 +54,7 @@ you typed, so a question about a car will not match a passage about an
 automobile.
 
 Semantic search turns each chunk and the question into a vector with the
-`text-embedding-3-small` model, then ranks chunks by cosine similarity. That
+`gemini-embedding-001` model, then ranks chunks by cosine similarity. That
 finds passages about the same subject even when they share no words.
 
 Chunk vectors are cached in `embeddings_cache.json`, keyed by the chunk text,
@@ -62,7 +62,7 @@ so unchanged documents are only ever paid for once. The cache records which
 model wrote it and is discarded if the model changes, because vectors from
 two different models cannot be compared.
 
-With `--answer`, the ranked chunks are numbered and handed to `gpt-4o-mini`,
+With `--answer`, the ranked chunks are numbered and handed to `gemini-2.5-flash`,
 which is told to answer using only those chunks, to cite them in brackets
 like `[1]`, and to say plainly when the chunks do not contain the answer
 rather than guessing. The bracket numbers are positions in the result list,
@@ -74,4 +74,4 @@ so the printed `Sources:` section maps each one back to its file.
 python -m unittest discover
 ```
 
-The tests never call the OpenAI API.
+The tests never call the Gemini API.

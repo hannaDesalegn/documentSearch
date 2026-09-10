@@ -7,19 +7,16 @@ from answer import NO_RESULTS_ANSWER, SYSTEM_PROMPT, build_prompt, generate_answ
 
 
 class FakeClient:
-    """Stands in for the OpenAI client and records what it was asked."""
+    """Stands in for the Gemini client and records what it was asked."""
 
     def __init__(self, reply: str = "an answer [1]") -> None:
         self.reply = reply
         self.calls: list[dict] = []
-        self.chat = SimpleNamespace(
-            completions=SimpleNamespace(create=self.create)
-        )
+        self.models = SimpleNamespace(generate_content=self.generate_content)
 
-    def create(self, model: str, messages: list[dict]) -> SimpleNamespace:
-        self.calls.append({"model": model, "messages": messages})
-        message = SimpleNamespace(content=self.reply)
-        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+    def generate_content(self, model: str, contents: str, config) -> SimpleNamespace:
+        self.calls.append({"model": model, "contents": contents, "config": config})
+        return SimpleNamespace(text=self.reply)
 
 
 # Ranked results, deliberately not in document order, with scores that should
@@ -84,14 +81,12 @@ class GenerateAnswerTests(unittest.TestCase):
 
         self.assertEqual(1, len(client.calls))
         call = client.calls[0]
-        self.assertEqual("gpt-4o-mini", call["model"])
+        self.assertEqual("gemini-2.5-flash", call["model"])
+        self.assertEqual(build_prompt("what is chunking", RESULTS), call["contents"])
 
-        roles = [message["role"] for message in call["messages"]]
-        self.assertEqual(["system", "user"], roles)
-        self.assertEqual(SYSTEM_PROMPT, call["messages"][0]["content"])
-        self.assertEqual(
-            build_prompt("what is chunking", RESULTS), call["messages"][1]["content"]
-        )
+        # The rules travel as a system instruction, kept apart from the
+        # chunks rather than pasted above them.
+        self.assertEqual(SYSTEM_PROMPT, call["config"].system_instruction)
 
     def test_no_results_answers_without_calling_the_api(self) -> None:
         client = FakeClient()

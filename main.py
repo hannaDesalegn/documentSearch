@@ -53,7 +53,7 @@ def run_search(
     """Rank the chunks with whichever search the flags asked for."""
     if use_semantic:
         # Imported here, not at the top of the file, so that the keyword
-        # search still runs on a machine with no numpy, no openai package
+        # search still runs on a machine with no numpy, no google-genai package
         # and no API key. Only the semantic path needs any of those.
         from embeddings import semantic_search
 

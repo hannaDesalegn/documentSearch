@@ -1,7 +1,9 @@
-from openai_client import get_client
+from google.genai import types
+
+from llm_client import get_client
 
 
-MODEL = "gpt-4o-mini"
+MODEL = "gemini-2.5-flash"
 
 # The model is told three things, and the third one is the one that matters.
 # A language model asked a question it cannot answer will usually invent a
@@ -61,12 +63,15 @@ def generate_answer(question: str, results: list[tuple[float, int, str]]) -> str
     if not results:
         return NO_RESULTS_ANSWER
 
-    response = get_client().chat.completions.create(
+    # The rules go in as a system instruction rather than at the top of the
+    # prompt, so they stay separate from the chunks. A chunk that happens to
+    # contain instruction-like wording is then plainly just document text,
+    # not something competing with the rules for the model's attention.
+    client = get_client()
+    response = client.models.generate_content(
         model=MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": build_prompt(question, results)},
-        ],
+        contents=build_prompt(question, results),
+        config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
     )
 
-    return response.choices[0].message.content
+    return response.text

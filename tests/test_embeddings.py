@@ -1,10 +1,49 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 import embeddings
-from embeddings import cosine_similarity, embed_chunks, semantic_search
+from embeddings import cosine_similarity, embed_chunks, embed_texts, semantic_search
+
+
+class FakeClient:
+    """Stands in for the Gemini client and records what it was asked."""
+
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+        self.models = SimpleNamespace(embed_content=self.embed_content)
+
+    def embed_content(self, model: str, contents: list[str]) -> SimpleNamespace:
+        self.calls.append({"model": model, "contents": contents})
+        # Gemini returns each vector wrapped in an object, and the numbers
+        # live on .values. Getting that wrapper wrong is the whole reason
+        # this test exists.
+        embeddings_out = [
+            SimpleNamespace(values=[float(len(text)), 1.0]) for text in contents
+        ]
+        return SimpleNamespace(embeddings=embeddings_out)
+
+
+class EmbedTextsTests(unittest.TestCase):
+    def test_unwraps_the_vectors_in_input_order(self) -> None:
+        client = FakeClient()
+
+        with patch.object(embeddings, "get_client", lambda: client):
+            vectors = embed_texts(["four", "seven!!"])
+
+        self.assertEqual([[4.0, 1.0], [7.0, 1.0]], vectors)
+
+    def test_sends_every_text_in_one_call(self) -> None:
+        client = FakeClient()
+
+        with patch.object(embeddings, "get_client", lambda: client):
+            embed_texts(["one", "two", "three"])
+
+        self.assertEqual(1, len(client.calls))
+        self.assertEqual("gemini-embedding-001", client.calls[0]["model"])
+        self.assertEqual(["one", "two", "three"], client.calls[0]["contents"])
 
 
 class CosineSimilarityTests(unittest.TestCase):

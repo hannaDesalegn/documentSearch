@@ -5,10 +5,10 @@ import numpy as np
 
 # Both this file and answer.py need a client built the same careful way, so
 # the setup lives in one place instead of being copied into each of them.
-from openai_client import get_client
+from llm_client import get_client
 
 
-MODEL = "text-embedding-3-small"
+MODEL = "gemini-embedding-001"
 CACHE_PATH = Path(__file__).parent / "embeddings_cache.json"
 
 
@@ -17,10 +17,15 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     # The API accepts a list, so one request covers every text. Sending them
     # one at a time would be the same number of tokens but many times the
     # waiting, because each request pays the network round trip again.
-    response = get_client().embeddings.create(model=MODEL, input=texts)
+    # The client is held in a variable for the duration of the call. Chaining
+    # straight off get_client() leaves nothing referring to it, and Python is
+    # free to collect and close it before the request finishes.
+    client = get_client()
+    response = client.models.embed_content(model=MODEL, contents=texts)
 
-    # The response comes back in the same order as the input list.
-    return [item.embedding for item in response.data]
+    # The response comes back in the same order as the input list. Gemini
+    # wraps each vector in an object, so the numbers are read off .values.
+    return [embedding.values for embedding in response.embeddings]
 
 
 def embed_text(text: str) -> list[float]:
