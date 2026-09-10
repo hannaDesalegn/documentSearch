@@ -43,7 +43,9 @@ def print_documents(documents_dir: Path) -> None:
         print()
 
 
-def print_search_results(documents_dir: Path, question: str) -> None:
+def print_search_results(
+    documents_dir: Path, question: str, use_semantic: bool = False
+) -> None:
     chunks = load_chunks(documents_dir)
 
     if not chunks:
@@ -53,7 +55,16 @@ def print_search_results(documents_dir: Path, question: str) -> None:
     # search() only needs the text, so hand it the chunk text alone and keep
     # the index it returns to look the file name back up afterwards.
     chunk_texts = [chunk for _, chunk in chunks]
-    results = search(question, chunk_texts)
+
+    if use_semantic:
+        # Imported here, not at the top of the file, so that the keyword
+        # search still runs on a machine with no numpy, no openai package
+        # and no API key. Only the semantic path needs any of those.
+        from embeddings import semantic_search
+
+        results = semantic_search(question, chunk_texts)
+    else:
+        results = search(question, chunk_texts)
 
     if not results:
         print(f"No chunks matched: {question}")
@@ -64,17 +75,25 @@ def print_search_results(documents_dir: Path, question: str) -> None:
 
     for score, index, chunk in results:
         source_name = chunks[index][0]
-        print(f"score {score} - {source_name}")
+        # Keyword scores are whole counts, similarity scores are fractions
+        # between -1 and 1, so they are printed to a readable number of
+        # decimal places instead of in full.
+        score_text = f"{score:.3f}" if isinstance(score, float) else str(score)
+        print(f"score {score_text} - {source_name}")
         print(chunk)
         print()
 
 
 if __name__ == "__main__":
-    # Everything after the script name is the question, so a multi-word
-    # question works without quotes as well as with them.
-    question = " ".join(sys.argv[1:])
+    arguments = sys.argv[1:]
+
+    # Pull the flag out wherever it appears, so it can be written before or
+    # after the question. Everything left over is the question itself, which
+    # means a multi-word question works without quotes.
+    use_semantic = "--semantic" in arguments
+    question = " ".join(word for word in arguments if word != "--semantic")
 
     if question:
-        print_search_results(DOCUMENTS_DIR, question)
+        print_search_results(DOCUMENTS_DIR, question, use_semantic)
     else:
         print_documents(DOCUMENTS_DIR)
