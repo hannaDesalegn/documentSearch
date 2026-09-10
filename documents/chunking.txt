@@ -1,0 +1,6 @@
+Chunking splits a long document into smaller pieces before searching it.
+A chunk of roughly two hundred words is small enough to read on its own.
+Searching whole documents is coarse, because a long document can match a
+question on a single stray word buried in a paragraph about something else.
+Splitting the document first means the search points at the passage that
+actually answers the question rather than at the file as a whole.

@@ -1,0 +1,7 @@
+Keyword search ranks text by counting how often the words of a question
+appear in it. A chunk that repeats a question word several times scores
+higher than a chunk that mentions it once. This is crude but useful, and it
+is the same idea behind the retrieval step of a search engine.
+The obvious weakness is that keyword search only finds the exact words you
+typed. A passage about a car will not match a question about an automobile,
+because the two share no words at all.
